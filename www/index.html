@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find My Device — Setup</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#0f0c29; --bg2:#302b63; --bg3:#24243e;
+    --card:rgba(255,255,255,0.06); --border:rgba(255,255,255,0.12);
+    --text:#f5f6fa; --muted:#a0a6b8;
+    --accent:#6c5ce7; --accent2:#00d2ff; --danger:#ff5e78; --ok:#00e396;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    min-height:100vh; font-family:'Inter',sans-serif; color:var(--text);
+    background:
+      radial-gradient(circle at 15% 15%, rgba(108,92,231,0.28), transparent 42%),
+      radial-gradient(circle at 85% 0%, rgba(0,210,255,0.18), transparent 42%),
+      radial-gradient(circle at 50% 100%, rgba(255,94,120,0.10), transparent 40%),
+      linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+    background-attachment:fixed;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:24px;
+    padding:34px; max-width:430px; width:100%; backdrop-filter:blur(22px);
+    -webkit-backdrop-filter:blur(22px); box-shadow:0 24px 64px rgba(0,0,0,0.45);
+  }
+  .brand-icon{
+    width:54px; height:54px; border-radius:15px; margin-bottom:20px;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center; font-size:27px;
+    box-shadow:0 12px 30px rgba(108,92,231,0.45);
+  }
+  h2{font-size:22px; font-weight:800; margin-bottom:7px; letter-spacing:-0.3px}
+  .muted{color:var(--muted); font-size:14px; line-height:1.6; margin-bottom:6px}
+
+  label{font-size:12.5px; color:var(--muted); font-weight:600; display:block; margin:19px 0 7px; text-transform:uppercase; letter-spacing:0.4px}
+  input{
+    width:100%; padding:14px 16px; border-radius:13px;
+    border:1px solid var(--border); background:rgba(255,255,255,0.045); color:var(--text);
+    font-size:15px; outline:none; transition:.2s;
+  }
+  input:focus{border-color:var(--accent); background:rgba(255,255,255,0.08); box-shadow:0 0 0 4px rgba(108,92,231,0.18)}
+
+  button{
+    border:none; border-radius:13px; cursor:pointer; font-family:inherit;
+    font-weight:700; font-size:15px; transition:.2s; padding:15px 20px; width:100%;
+  }
+  .btn-primary{
+    margin-top:26px; color:#fff;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow:0 12px 30px rgba(108,92,231,0.4);
+  }
+  .btn-primary:hover{transform:translateY(-1px); box-shadow:0 16px 36px rgba(108,92,231,0.5)}
+  .btn-primary:disabled{opacity:.55; cursor:not-allowed; transform:none}
+
+  #errBox{
+    display:none; margin-top:14px; padding:13px 15px; border-radius:11px;
+    background:rgba(255,94,120,0.12); border:1px solid rgba(255,94,120,0.35);
+    color:#ffb3c0; font-size:13px; line-height:1.55; word-break:break-word; font-family:'Courier New',monospace;
+  }
+
+  .idbox{
+    font-family:'Courier New',monospace; font-size:25px; font-weight:800; letter-spacing:3px;
+    background:rgba(108,92,231,0.16); border:1px solid rgba(108,92,231,0.4); color:#d2cdff;
+    padding:17px; border-radius:15px; text-align:center; margin:18px 0;
+  }
+  .status-pill{
+    display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
+    background:rgba(0,227,150,0.12); color:var(--ok); padding:7px 15px; border-radius:999px;
+    border:1px solid rgba(0,227,150,0.3); margin-bottom:15px;
+  }
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok)}
+
+  .loader{
+    width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff;
+    border-radius:50%; display:inline-block; animation:spin .7s linear infinite; vertical-align:middle;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #ringBanner{
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:linear-gradient(135deg,#ff5e78,#ff3860);
+    color:#fff; align-items:center; justify-content:center; flex-direction:column;
+    font-size:30px; font-weight:800; text-align:center; padding:20px;
+    animation:pulseBg 1s ease-in-out infinite;
+  }
+  @keyframes pulseBg{0%,100%{filter:brightness(1)}50%{filter:brightness(1.25)}}
+  #ringBanner .icon{font-size:58px; margin-bottom:12px}
+  #ringBanner button{
+    background:#fff; color:#ff3860; max-width:220px; margin-top:28px; font-weight:800;
+  }
+</style>
+</head>
+<body>
+
+<div id="ringBanner">
+  <div class="icon">🔔</div>
+  Ringing…
+  <button id="stopBtn" type="button">Stop</button>
+</div>
+
+<div class="card" id="setupCard">
+  <div class="brand-icon">🛰️</div>
+  <h2>Device Setup</h2>
+  <p class="muted">One-time setup. After this, you never need to open this app again.</p>
+  <label>Your Name</label>
+  <input id="userName" placeholder="e.g. Jaimin" autocomplete="off" />
+  <label>Device Name</label>
+  <input id="deviceName" placeholder="e.g. My Phone" autocomplete="off" />
+  <button class="btn-primary" id="setupBtn" type="button">Complete Setup</button>
+  <div id="errBox"></div>
+</div>
+
+<div class="card" id="doneCard" style="display:none">
+  <div class="brand-icon">✅</div>
+  <div class="status-pill"><span class="dot"></span>Setup Complete</div>
+  <h2>You're all set</h2>
+  <p class="muted">Your device ID (visible to you and the admin):</p>
+  <div class="idbox" id="idDisplay"></div>
+  <p class="muted">This app now runs quietly in the background. It's safe to close.</p>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const SUPABASE_URL = "https://bdrfauhbzqydbtyvwbnu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ptN307NVc4zJC9tnGzKfnA__DN40GSc";
+const RING_RADIUS_METERS = 200;
+// ====================================================
+
+let sb = null;
+
+function showErr(msg){
+  const box = document.getElementById("errBox");
+  if(!box){ alert(msg); return; }
+  box.textContent = msg;
+  box.style.display = "block";
+  console.error("[FindMyDevice]", msg);
+}
+function clearErr(){
+  const box = document.getElementById("errBox");
+  if(box) box.style.display = "none";
+}
+
+window.addEventListener("error", (e) => {
+  showErr("Script error: " + e.message + " (line " + e.lineno + ")");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  showErr("Unhandled error: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+
+function initSupabase(){
+  if(typeof window.supabase === "undefined" || !window.supabase.createClient){
+    showErr("Supabase library failed to load. Check your internet connection, then refresh.");
+    return null;
+  }
+  try{
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }catch(e){
+    showErr("Could not initialize Supabase client: " + e.message);
+    return null;
+  }
+}
+
+function genDeviceId(){
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for(let i=0;i<10;i++) id += chars[Math.floor(Math.random()*chars.length)];
+  return id;
+}
+
+function haversineMeters(lat1, lon1, lat2, lon2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+async function doSetup(){
+  clearErr();
+  const name = document.getElementById("userName").value.trim();
+  const device = document.getElementById("deviceName").value.trim();
+  const btn = document.getElementById("setupBtn");
+
+  if(!name || !device){ showErr("Please fill in both fields."); return; }
+  if(!sb){ sb = initSupabase(); if(!sb) return; }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.innerHTML = '<span class="loader"></span> Requesting permissions...';
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const deviceId = genDeviceId();
+    const { error } = await sb.from("devices").insert({
+      device_id: deviceId,
+      user_name: name,
+      device_name: device,
+      last_lat: pos.coords.latitude,
+      last_lng: pos.coords.longitude,
+      is_online: true
+    });
+    if(error){
+      showErr("Could not save device: " + error.message);
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+
+    localStorage.setItem("device_id", deviceId);
+    if("Notification" in window) Notification.requestPermission();
+
+    document.getElementById("setupCard").style.display = "none";
+    document.getElementById("doneCard").style.display = "block";
+    document.getElementById("idDisplay").textContent = deviceId;
+
+    startBackgroundWatch(deviceId);
+  }, (err) => {
+    showErr("Location permission is required: " + err.message);
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }, { enableHighAccuracy: true });
+}
+
+let audioCtx, oscillator, gainNode, vibrateInterval;
+
+function startAlarm(){
+  document.getElementById("ringBanner").style.display = "flex";
+  if(navigator.vibrate){
+    navigator.vibrate([400,200,400,200,400]);
+    vibrateInterval = setInterval(()=>navigator.vibrate([400,200,400,200,400]), 1600);
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  oscillator = audioCtx.createOscillator();
+  gainNode = audioCtx.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+  oscillator.connect(gainNode).connect(audioCtx.destination);
+  oscillator.start();
+  let rising = true;
+  oscillator._sweep = setInterval(()=>{
+    const now = audioCtx.currentTime;
+    const f = rising ? 1400 : 700;
+    oscillator.frequency.linearRampToValueAtTime(f, now + 0.5);
+    rising = !rising;
+  }, 500);
+}
+
+function stopRinging(){
+  document.getElementById("ringBanner").style.display = "none";
+  if(vibrateInterval) clearInterval(vibrateInterval);
+  if(navigator.vibrate) navigator.vibrate(0);
+  if(oscillator){
+    clearInterval(oscillator._sweep);
+    oscillator.stop();
+    audioCtx.close();
+  }
+}
+
+function startBackgroundWatch(deviceId){
+  navigator.geolocation.watchPosition(async (pos) => {
+    await sb.from("devices").update({
+      last_lat: pos.coords.latitude,
+      last_lng: pos.coords.longitude,
+      last_seen: new Date().toISOString(),
+      is_online: true
+    }).eq("device_id", deviceId);
+  }, (e)=>console.warn("Geolocation error:", e.message), { enableHighAccuracy:true, maximumAge: 10000 });
+
+  sb.channel("ring_" + deviceId)
+    .on("postgres_changes",
+      { event: "INSERT", schema: "public", table: "ring_commands", filter: `device_id=eq.${deviceId}` },
+      async (payload) => {
+        const cmd = payload.new;
+        navigator.geolocation.getCurrentPosition((pos)=>{
+          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, cmd.admin_lat, cmd.admin_lng);
+          if(dist <= RING_RADIUS_METERS){
+            startAlarm();
+          }
+        }, (e)=>console.warn("No location fix:", e.message), { enableHighAccuracy:true });
+      })
+    .subscribe();
+}
+
+function boot(){
+  sb = initSupabase();
+
+  document.getElementById("setupBtn").addEventListener("click", doSetup);
+  document.getElementById("stopBtn").addEventListener("click", stopRinging);
+
+  const existingId = localStorage.getItem("device_id");
+  if(existingId && sb){
+    document.getElementById("setupCard").style.display = "none";
+    document.getElementById("doneCard").style.display = "block";
+    document.getElementById("idDisplay").textContent = existingId;
+    startBackgroundWatch(existingId);
+  }
+}
+
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", boot);
+}else{
+  boot();
+}
+</script>
+</body>
+</html>
