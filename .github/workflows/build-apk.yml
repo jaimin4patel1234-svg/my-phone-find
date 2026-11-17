@@ -19,6 +19,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Generate app icon from logo
+        run: npx @capacitor/assets generate --android
+
       - name: Insert required permissions into AndroidManifest.xml
         run: |
           node -e "
