@@ -1,0 +1,53 @@
+name: Build APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Insert required permissions into AndroidManifest.xml
+        run: |
+          node -e "
+          const fs=require('fs');
+          const p='android/app/src/main/AndroidManifest.xml';
+          let xml=fs.readFileSync(p,'utf8');
+          const perms=['INTERNET','ACCESS_FINE_LOCATION','ACCESS_COARSE_LOCATION','ACCESS_BACKGROUND_LOCATION','VIBRATE','FOREGROUND_SERVICE','FOREGROUND_SERVICE_LOCATION','POST_NOTIFICATIONS','MODIFY_AUDIO_SETTINGS','WAKE_LOCK'];
+          const tags=perms.map(x=>'<uses-permission android:name=\"android.permission.'+x+'\" />').join('\n  ');
+          xml=xml.replace('<application', tags+'\n  <application');
+          fs.writeFileSync(p,xml);
+          "
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
